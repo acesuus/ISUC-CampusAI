@@ -15,11 +15,6 @@ function placeholder(title, phase, text) {
   };
 }
 
-export const directory = placeholder(
-  'Campus Directory',
-  'Phase 5',
-  'Searchable offices, departments, buildings and services.'
-);
 export const campusMap = placeholder(
   'Campus Map',
   'Phase 5',
@@ -29,11 +24,6 @@ export const guide = placeholder(
   'Student Guide',
   'Phase 5',
   'Academic, admission, enrollment, scholarship and document-request guides.'
-);
-export const announcements = placeholder(
-  'Announcements',
-  'Phase 5',
-  'Dated and verified campus announcements and events.'
 );
 
 export const about = {

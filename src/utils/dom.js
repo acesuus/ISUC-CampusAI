@@ -25,3 +25,34 @@ export function formatBytes(bytes) {
   }
   return `${n.toFixed(n >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
 }
+
+/**
+ * A label/value list for a record's fields. Values are publisher text, so they go in as
+ * textContent. Empty values are skipped, because a campus will not have every field for every
+ * entry. An array value becomes a bulleted list.
+ */
+export function fieldList(pairs) {
+  const list = document.createElement('dl');
+  list.className = 'field-list';
+  for (const [label, value] of pairs) {
+    const empty = value == null || value === '' || (Array.isArray(value) && !value.length);
+    if (empty) continue;
+
+    const term = document.createElement('dt');
+    term.textContent = label;
+    const detail = document.createElement('dd');
+    if (Array.isArray(value)) {
+      const items = document.createElement('ul');
+      for (const entry of value) {
+        const item = document.createElement('li');
+        item.textContent = String(entry);
+        items.append(item);
+      }
+      detail.append(items);
+    } else {
+      detail.textContent = String(value);
+    }
+    list.append(term, detail);
+  }
+  return list;
+}

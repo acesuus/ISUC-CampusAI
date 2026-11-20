@@ -23,11 +23,12 @@ export class PackStore {
     return row ?? null;
   }
 
-  async install(manifest, documents) {
+  /** `extra` carries the structured records the campus pages render, and the pack's assets. */
+  async install(manifest, documents, { records = {}, assets = {} } = {}) {
     await this.#tx('readwrite', async (s) => {
       const current = await s.packs.get('current');
       if (current) await s.packs.put({ ...current, slot: 'previous' });
-      await s.packs.put({ slot: 'current', manifest, documents, installedAt: Date.now() });
+      await s.packs.put({ slot: 'current', manifest, documents, records, assets, installedAt: Date.now() });
     });
   }
 

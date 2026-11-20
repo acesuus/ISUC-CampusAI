@@ -17,6 +17,58 @@ const DATE_FIELDS = ['effectiveDate', 'expirationDate', 'lastVerified', 'publica
 
 const isDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
 
+/**
+ * The structured records the campus pages render (README 6.4 to 6.9). Each kind lists the fields a
+ * record cannot be published without; everything else in README 6.x is optional, because a campus
+ * will not always have a fee or a schedule to publish.
+ */
+export const RECORD_KINDS = {
+  offices: { required: ['id', 'name'] },
+  places: {
+    required: ['id', 'name', 'category', 'x', 'y'],
+    check(record) {
+      for (const axis of ['x', 'y']) {
+        const value = record[axis];
+        if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100) {
+          throw new Error(`${axis} must be a number from 0 to 100 (a percentage of the campus image), got ${JSON.stringify(value)}`);
+        }
+      }
+    },
+  },
+  guides: { required: ['id', 'title', 'category'] },
+  announcements: { required: ['id', 'title', 'publicationDate'] },
+};
+
+/** Every record carries the verification metadata of README 8.4 and 8.5, like a document. */
+const RECORD_META = ['status', 'source', 'lastVerified'];
+
+export function validateRecords(kind, records, file = `${kind}.json`) {
+  const spec = RECORD_KINDS[kind];
+  if (!spec) throw new Error(`${file}: "${kind}" is not a record kind (${Object.keys(RECORD_KINDS).join(', ')})`);
+  if (!Array.isArray(records)) throw new Error(`${file}: expected a list of records`);
+
+  const seen = new Set();
+  for (const record of records) {
+    const where = `${file}: ${record?.id ?? 'a record with no id'}`;
+    if (!record || typeof record !== 'object') throw new Error(`${file}: every record must be an object`);
+    for (const field of [...spec.required, ...RECORD_META]) {
+      if (record[field] === undefined || record[field] === '') throw new Error(`${where}: missing "${field}"`);
+    }
+    if (!STATUSES.includes(record.status)) {
+      throw new Error(`${where}: status "${record.status}" is not one of ${STATUSES.join(', ')}`);
+    }
+    for (const field of DATE_FIELDS) {
+      if (record[field] && !isDate(record[field])) {
+        throw new Error(`${where}: ${field} must be YYYY-MM-DD, got "${record[field]}"`);
+      }
+    }
+    if (seen.has(record.id)) throw new Error(`${where}: duplicate record id`);
+    seen.add(record.id);
+    spec.check?.(record);
+  }
+  return records;
+}
+
 const slug = (text) =>
   text
     .toLowerCase()
@@ -91,24 +143,39 @@ export function parseDocument(text, file) {
  * file it downloaded is the one the publisher built (README 8.6). The signature and the signing key
  * id are added afterwards, by scripts/sign-pack.mjs.
  */
-export function buildPack(documents, { packVersion, campus, appVersion, createdAt }) {
+export function buildPack(documents, { packVersion, campus, appVersion, createdAt, records = {}, assets = {} } = {}) {
   const seen = new Map();
   for (const doc of documents) {
     if (seen.has(doc.id)) throw new Error(`duplicate document id "${doc.id}" (also in ${seen.get(doc.id)})`);
     seen.set(doc.id, doc.title);
   }
-  const documentsJson = `${JSON.stringify(documents)}\n`;
+
+  const hash = (data) => createHash('sha256').update(data).digest('hex');
+  const text = { 'documents.json': `${JSON.stringify(documents)}\n` };
+  const counts = {};
+  for (const [kind, list] of Object.entries(records)) {
+    validateRecords(kind, list);
+    text[`${kind}.json`] = `${JSON.stringify(list)}\n`;
+    counts[kind] = list.length;
+  }
+
+  const files = {};
+  for (const [name, data] of Object.entries(text)) files[name] = hash(data);
+  for (const [name, bytes] of Object.entries(assets)) files[`assets/${name}`] = hash(bytes);
+
   return {
     manifest: {
       packVersion,
       campus,
       createdAt,
       documentCount: documents.length,
+      recordCounts: counts,
       appVersion,
-      files: { 'documents.json': createHash('sha256').update(documentsJson).digest('hex') },
+      files,
     },
     documents,
-    documentsJson,
+    text,
+    assets,
   };
 }
 
@@ -129,19 +196,39 @@ async function main() {
   const documents = [];
   for (const file of files) documents.push(parseDocument(await readFile(file, 'utf8'), file));
 
+  // Structured records for the campus pages, and the campus map image, are both optional.
+  const records = {};
+  for (const kind of Object.keys(RECORD_KINDS)) {
+    const file = join(src, 'records', `${kind}.json`);
+    const raw = await readFile(file, 'utf8').catch(() => null);
+    if (raw !== null) records[kind] = validateRecords(kind, JSON.parse(raw), file);
+  }
+
+  const assets = {};
+  const assetDir = join(src, 'assets');
+  for (const entry of await readdir(assetDir, { withFileTypes: true }).catch(() => [])) {
+    if (entry.isFile()) assets[entry.name] = await readFile(join(assetDir, entry.name));
+  }
+
   const pack = buildPack(documents, {
     packVersion: arg('version', '0.1.0'),
     campus: arg('campus', 'isu-cabagan'),
     appVersion: JSON.parse(await readFile('package.json', 'utf8')).version,
     createdAt: new Date().toISOString().slice(0, 10),
+    records,
+    assets,
   });
 
   await mkdir(out, { recursive: true });
   await writeFile(join(out, 'manifest.json'), `${JSON.stringify(pack.manifest, null, 2)}\n`);
   // Write the same bytes that were hashed above.
-  await writeFile(join(out, 'documents.json'), pack.documentsJson);
+  for (const [name, data] of Object.entries(pack.text)) await writeFile(join(out, name), data);
+  if (Object.keys(pack.assets).length) await mkdir(join(out, 'assets'), { recursive: true });
+  for (const [name, bytes] of Object.entries(pack.assets)) await writeFile(join(out, 'assets', name), bytes);
   const sections = documents.reduce((n, d) => n + d.sections.length, 0);
-  console.log(`${documents.length} documents, ${sections} sections -> ${out}`);
+  const extras = Object.entries(pack.manifest.recordCounts).map(([k, n]) => `${n} ${k}`);
+  if (Object.keys(pack.assets).length) extras.push(`${Object.keys(pack.assets).length} assets`);
+  console.log(`${documents.length} documents, ${sections} sections${extras.length ? `, ${extras.join(', ')}` : ''} -> ${out}`);
   console.log('Next: sign it with scripts/sign-pack.mjs, or the app will refuse to install it.');
 }
 

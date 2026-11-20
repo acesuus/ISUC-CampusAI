@@ -210,3 +210,89 @@ progress {
   justify-content: center;
   margin-bottom: var(--space-4);
 }
+
+/* Campus record pages: directory, announcements, map, guide */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-6) 0 var(--space-3);
+}
+.filters input[type='search'] {
+  flex: 1 1 16rem;
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.chip[data-selected='true'] {
+  border-color: var(--primary);
+  background: var(--bg-soft);
+  font-weight: 600;
+}
+.chip[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.record-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+.record-card h2 {
+  font-size: 1.05rem;
+  margin: 0 0 var(--space-2);
+}
+.record-card[data-expired='true'] {
+  opacity: 0.75;
+}
+.record-card[data-expired='true'] h2 {
+  text-decoration: line-through;
+}
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+}
+.badge-row .badge {
+  margin-left: 0;
+}
+.badge[data-kind='warn'] {
+  color: var(--warning);
+  border-color: var(--warning);
+}
+.field-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: var(--space-3) 0 0;
+  font-size: 0.9rem;
+}
+.field-list dt {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.field-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.field-list ul {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+@media (max-width: 30rem) {
+  .field-list {
+    grid-template-columns: 1fr;
+    gap: 0 0;
+  }
+  .field-list dt {
+    margin-top: var(--space-2);
+  }
+}

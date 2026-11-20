@@ -27,18 +27,64 @@ function remembered() {
   }
 }
 
+/**
+ * A pack lists its own files, and that list is read before the signature has been checked, so it is
+ * treated as hostile input: at most MAX_FILES plain names, no paths that climb out of the pack.
+ * Whatever is fetched is still verified against the signed manifest afterwards.
+ */
+const MAX_FILES = 24;
+const SAFE_NAME = /^[a-z0-9][a-z0-9._-]*(\/[a-z0-9][a-z0-9._-]*)?$/i;
+
+export function safeFileNames(files) {
+  const names = Object.keys(files ?? {});
+  if (!names.length) throw new Error('the pack lists no files');
+  if (names.length > MAX_FILES) throw new Error(`the pack lists ${names.length} files, more than CampusAI installs`);
+  for (const name of names) {
+    if (name === 'manifest.json' || name === 'manifest.sig') continue;
+    if (!SAFE_NAME.test(name) || name.includes('..')) throw new Error(`the pack lists an unexpected file name: ${name}`);
+  }
+  return names.filter((name) => name !== 'manifest.json' && name !== 'manifest.sig');
+}
+
 async function fetchPackFiles(base) {
   const get = async (name, as) => {
     const res = await fetch(`${base}knowledge/${name}`, { cache: 'no-store' });
     if (!res.ok) throw new Error(`${name}: ${res.status}`);
     return as === 'bytes' ? new Uint8Array(await res.arrayBuffer()) : res.text();
   };
-  const [manifestBytes, signature, documentsBytes] = await Promise.all([
-    get('manifest.json', 'bytes'),
-    get('manifest.sig', 'text'),
-    get('documents.json', 'bytes'),
-  ]);
-  return { manifestBytes, signature, files: { 'documents.json': documentsBytes } };
+  const [manifestBytes, signature] = await Promise.all([get('manifest.json', 'bytes'), get('manifest.sig', 'text')]);
+
+  let listed;
+  try {
+    listed = safeFileNames(JSON.parse(new TextDecoder().decode(manifestBytes)).files);
+  } catch (err) {
+    throw new Error(err?.message ?? 'the pack description could not be read');
+  }
+
+  const files = {};
+  await Promise.all(listed.map(async (name) => void (files[name] = await get(name, 'bytes'))));
+  return { manifestBytes, signature, files };
+}
+
+/** Split verified pack files into the documents, the records each page renders, and the assets. */
+export function readPackFiles(files) {
+  const decode = (bytes) => JSON.parse(new TextDecoder().decode(bytes));
+  const documents = decode(files['documents.json']);
+  if (!Array.isArray(documents)) throw new Error('documents.json is not a list');
+
+  const records = {};
+  const assets = {};
+  for (const [name, bytes] of Object.entries(files)) {
+    if (name === 'documents.json') continue;
+    if (name.startsWith('assets/')) {
+      assets[name.slice('assets/'.length)] = bytes;
+    } else if (name.endsWith('.json')) {
+      const list = decode(bytes);
+      if (!Array.isArray(list)) throw new Error(`${name} is not a list`);
+      records[name.slice(0, -'.json'.length)] = list;
+    }
+  }
+  return { documents, records, assets };
 }
 
 export class PackInstaller {
@@ -95,16 +141,15 @@ export class PackInstaller {
     const result = await verifyPack(downloaded, await this.keys());
     if (!result.ok) return { ok: false, reason: result.reason };
 
-    let documents;
+    let content;
     try {
-      documents = JSON.parse(new TextDecoder().decode(downloaded.files['documents.json']));
-      if (!Array.isArray(documents)) throw new Error('documents.json is not a list');
+      content = readPackFiles(downloaded.files);
     } catch (err) {
       return { ok: false, reason: `The pack contents could not be read: ${err?.message ?? err}` };
     }
 
     try {
-      await this.store.install(result.manifest, documents);
+      await this.store.install(result.manifest, content.documents, { records: content.records, assets: content.assets });
     } catch (err) {
       return { ok: false, reason: `The pack could not be saved: ${err?.message ?? err}` };
     }

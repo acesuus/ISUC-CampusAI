@@ -11,7 +11,9 @@ import { registerServiceWorker, onConnectivityChange } from './services/OfflineS
 import home from './pages/home/home.js';
 import assistant from './pages/assistant/assistant.js';
 import settings from './pages/settings/settings.js';
-import { directory, campusMap, guide, announcements, about } from './pages/placeholders.js';
+import directory from './pages/directory/directory.js';
+import announcements from './pages/announcements/announcements.js';
+import { campusMap, guide, about } from './pages/placeholders.js';
 
 const shell = renderShell(document.getElementById('app'));
 

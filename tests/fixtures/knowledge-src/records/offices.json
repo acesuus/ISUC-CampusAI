@@ -1,0 +1,36 @@
+[
+  {
+    "id": "fixture-records-office",
+    "name": "Example Records Window (test fixture)",
+    "unit": "Example Academic Services",
+    "description": "Invented office used to test the directory page. Not a real ISU office.",
+    "location": "Example Building A, ground floor",
+    "schedule": "Monday to Friday, 8:00 to 17:00",
+    "contact": "records@example.invalid",
+    "services": ["Example registration", "Example transcript request"],
+    "procedures": "Bring the example slip to the window.",
+    "status": "verified",
+    "source": "tests/fixtures",
+    "lastVerified": "2026-01-02"
+  },
+  {
+    "id": "fixture-cashier",
+    "name": "Example Cashier Window (test fixture)",
+    "unit": "Example Finance",
+    "description": "Invented office used to test filtering.",
+    "location": "Example Building B",
+    "services": ["Example payment"],
+    "status": "verified",
+    "source": "tests/fixtures",
+    "lastVerified": "2026-01-02"
+  },
+  {
+    "id": "fixture-office-draft",
+    "name": "Example Draft Office (test fixture)",
+    "unit": "Example Finance",
+    "description": "A draft record. The directory must never show it.",
+    "status": "draft",
+    "source": "tests/fixtures",
+    "lastVerified": "2026-01-02"
+  }
+]
