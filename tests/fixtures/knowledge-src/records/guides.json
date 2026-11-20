@@ -1,0 +1,41 @@
+[
+  {
+    "id": "fixture-guide-enrollment",
+    "title": "Example Enrollment Steps (test fixture)",
+    "category": "Admission and Enrollment",
+    "purpose": "Invented guide used to test the guide page and its checklist. Not real ISU procedure.",
+    "requirements": ["Example admission slip", "Two example photographs"],
+    "office": "Example Records Window",
+    "processingTime": "About one example day",
+    "reference": "tests/fixtures",
+    "steps": [
+      { "id": "s1", "text": "Review the example requirements." },
+      { "id": "s2", "text": "Prepare the example documents." },
+      { "id": "s3", "text": "Visit the example records window." }
+    ],
+    "status": "verified",
+    "source": "tests/fixtures",
+    "lastVerified": "2026-01-02"
+  },
+  {
+    "id": "fixture-guide-transcript",
+    "title": "Example Transcript Request (test fixture)",
+    "category": "Document Requests",
+    "purpose": "Invented document guide used to test category filtering.",
+    "requirements": ["Example clearance"],
+    "office": "Example Records Window",
+    "fees": "Example fee, confirm with the office",
+    "status": "verified",
+    "source": "tests/fixtures",
+    "lastVerified": "2026-01-02"
+  },
+  {
+    "id": "fixture-guide-draft",
+    "title": "Example Draft Guide (test fixture)",
+    "category": "Scholarships",
+    "purpose": "A draft guide. The page must never show it.",
+    "status": "draft",
+    "source": "tests/fixtures",
+    "lastVerified": "2026-01-02"
+  }
+]

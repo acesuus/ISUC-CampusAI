@@ -6,7 +6,7 @@
  * tiny per-store API, which also means tests can pass a plain in-memory stand-in.
  */
 const DB_NAME = 'campusai';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const request = (req) =>
   new Promise((resolve, reject) => {
@@ -31,6 +31,10 @@ export function openDb() {
       }
       if (!db.objectStoreNames.contains('packs')) {
         db.createObjectStore('packs', { keyPath: 'slot' });
+      }
+      // Added in version 2. The guards above and here mean an existing database upgrades in place.
+      if (!db.objectStoreNames.contains('checklists')) {
+        db.createObjectStore('checklists', { keyPath: 'id' });
       }
     };
     open.onsuccess = () => resolve(open.result);

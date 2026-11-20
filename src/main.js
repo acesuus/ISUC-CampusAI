@@ -13,7 +13,9 @@ import assistant from './pages/assistant/assistant.js';
 import settings from './pages/settings/settings.js';
 import directory from './pages/directory/directory.js';
 import announcements from './pages/announcements/announcements.js';
-import { campusMap, guide, about } from './pages/placeholders.js';
+import campusMap from './pages/map/map.js';
+import guide from './pages/guide/guide.js';
+import { about } from './pages/placeholders.js';
 
 const shell = renderShell(document.getElementById('app'));
 

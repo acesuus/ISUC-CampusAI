@@ -1,0 +1,37 @@
+[
+  {
+    "id": "fixture-building-a",
+    "name": "Example Building A (test fixture)",
+    "category": "Academic",
+    "description": "Invented building used to test the campus map. Not a real ISU building.",
+    "accessibility": "Example ramp at the north entrance",
+    "x": 28,
+    "y": 36,
+    "status": "verified",
+    "source": "tests/fixtures",
+    "lastVerified": "2026-01-02"
+  },
+  {
+    "id": "fixture-building-b",
+    "name": "Example Building B (test fixture)",
+    "category": "Services",
+    "description": "Invented building used to test filtering.",
+    "x": 68,
+    "y": 58,
+    "status": "verified",
+    "source": "tests/fixtures",
+    "lastVerified": "2026-01-02"
+  },
+  {
+    "id": "fixture-place-expired",
+    "name": "Example Removed Hut (test fixture)",
+    "category": "Services",
+    "description": "An expired place record. The map must never show it.",
+    "x": 10,
+    "y": 90,
+    "status": "verified",
+    "expirationDate": "2020-01-01",
+    "source": "tests/fixtures",
+    "lastVerified": "2019-01-02"
+  }
+]

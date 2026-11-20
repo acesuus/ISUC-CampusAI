@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500" role="img" aria-label="Example campus map, a test fixture">
+  <rect width="800" height="500" fill="#eef3ee"/>
+  <text x="400" y="34" font-family="sans-serif" font-size="22" text-anchor="middle" fill="#2a3830">Example campus (test fixture, not ISU)</text>
+  <rect x="150" y="140" width="140" height="90" rx="6" fill="#cfe0d2" stroke="#2a3830"/>
+  <text x="220" y="190" font-family="sans-serif" font-size="14" text-anchor="middle" fill="#2a3830">Building A</text>
+  <rect x="490" y="250" width="140" height="90" rx="6" fill="#cfe0d2" stroke="#2a3830"/>
+  <text x="560" y="300" font-family="sans-serif" font-size="14" text-anchor="middle" fill="#2a3830">Building B</text>
+  <path d="M60 420 H740" stroke="#9bb3a1" stroke-width="16" fill="none"/>
+</svg>

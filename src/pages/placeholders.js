@@ -1,31 +1,6 @@
 import { MODEL_CATALOG } from '../ai/engine/catalog.js';
 import { escapeHtml } from '../utils/dom.js';
 
-function placeholder(title, phase, text) {
-  return {
-    title,
-    render() {
-      return `
-        <div class="container">
-          <h1>${title}</h1>
-          <p>${text}</p>
-          <div class="notice">Planned for ${phase}. Content will only be published once verified by the responsible office.</div>
-        </div>`;
-    },
-  };
-}
-
-export const campusMap = placeholder(
-  'Campus Map',
-  'Phase 5',
-  'An interactive campus map using locally stored map data.'
-);
-export const guide = placeholder(
-  'Student Guide',
-  'Phase 5',
-  'Academic, admission, enrollment, scholarship and document-request guides.'
-);
-
 export const about = {
   title: 'About',
   render() {

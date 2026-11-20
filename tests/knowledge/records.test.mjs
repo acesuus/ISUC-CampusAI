@@ -110,3 +110,12 @@ test('search looks through text and list fields; categories are collected', () =
   assert.deepEqual(categoriesOf([{ category: 'B' }, { category: 'A' }, { category: 'A' }, {}]), ['A', 'B']);
   assert.deepEqual(categoriesOf([office({ unit: 'Finance' })], 'unit'), ['Finance']);
 });
+
+test('a guide checklist step needs an id and a text', () => {
+  const guide = (steps) => [{ ...office({ id: 'g1', title: 'G', category: 'C' }), steps }];
+  assert.doesNotThrow(() => validateRecords('guides', guide([{ id: 's1', text: 'Do it' }])));
+  assert.doesNotThrow(() => validateRecords('guides', guide(undefined)), 'steps are optional');
+  assert.throws(() => validateRecords('guides', guide('one, two')), /steps must be a list/);
+  assert.throws(() => validateRecords('guides', guide([{ text: 'no id' }])), /needs an id and a text/);
+  assert.throws(() => validateRecords('guides', guide([{ id: 's1', text: 'a' }, { id: 's1', text: 'b' }])), /duplicate step id "s1"/);
+});

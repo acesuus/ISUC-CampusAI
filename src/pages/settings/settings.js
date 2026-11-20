@@ -4,6 +4,7 @@ import { modelManager } from '../../ai/engine/ModelManager.js';
 import { knowledgeBase, packInstaller } from '../../ai/knowledge/KnowledgeBase.js';
 import { conversation } from '../../ai/session.js';
 import { ChatStore } from '../../storage/ChatStore.js';
+import { ChecklistStore } from '../../storage/ChecklistStore.js';
 import { storage } from '../../storage/db.js';
 import { MODEL_CATALOG, getModel, resolveVramMB } from '../../ai/engine/catalog.js';
 import { formatBytes, formatMB, escapeHtml } from '../../utils/dom.js';
@@ -95,7 +96,7 @@ export default {
 
     root.querySelector('#clear-all').addEventListener('click', async () => {
       if (!window.confirm('Remove your conversations, the knowledge pack and your preferences from this browser? Downloaded AI models are kept; remove those one at a time above.')) return;
-      await Promise.allSettled([chatStore.clear(), packInstaller.remove()]);
+      await Promise.allSettled([chatStore.clear(), packInstaller.remove(), new ChecklistStore({ connect: storage }).clear()]);
       knowledgeBase.reset();
       try {
         for (const key of ['campusai.theme', 'campusai.model', 'campusai.pack']) localStorage.removeItem(key);
@@ -116,7 +117,7 @@ export default {
 
     root.querySelector('#clear-all').addEventListener('click', async () => {
       if (!window.confirm('Remove your conversations, the knowledge pack and your preferences from this browser? Downloaded AI models are kept; remove those one at a time above.')) return;
-      await Promise.allSettled([chatStore.clear(), packInstaller.remove()]);
+      await Promise.allSettled([chatStore.clear(), packInstaller.remove(), new ChecklistStore({ connect: storage }).clear()]);
       knowledgeBase.reset();
       try {
         for (const key of ['campusai.theme', 'campusai.model', 'campusai.pack']) localStorage.removeItem(key);
@@ -136,13 +137,20 @@ export default {
     const packInstall = root.querySelector('#pack-install');
     const packClear = root.querySelector('#pack-clear');
 
+    /** What else the installed pack carries: the records the campus pages render. */
+    function contents() {
+      const counts = Object.entries(knowledgeBase.manifest?.recordCounts ?? {}).filter(([, n]) => n > 0);
+      return counts.length ? `, ${counts.map(([kind, n]) => `${n} ${kind}`).join(', ')}` : '';
+    }
+
     async function renderPack(message = '') {
       const state = await packInstaller.check();
       const { installed, available, upToDate, documentCount } = state;
+      if (installed) await knowledgeBase.load();
 
       let text;
       if (installed && upToDate !== false) {
-        text = `Version ${installed} installed, ${documentCount} documents. Only verified documents are used.`;
+        text = `Version ${installed} installed: ${documentCount} documents${contents()}. Only verified entries are used.`;
       } else if (installed) {
         text = `Version ${installed} installed. Version ${available} is available.`;
       } else if (state.lost) {

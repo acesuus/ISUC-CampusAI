@@ -35,7 +35,19 @@ export const RECORD_KINDS = {
       }
     },
   },
-  guides: { required: ['id', 'title', 'category'] },
+  guides: {
+    required: ['id', 'title', 'category'],
+    check(record) {
+      if (record.steps === undefined) return;
+      if (!Array.isArray(record.steps)) throw new Error('steps must be a list');
+      const ids = new Set();
+      for (const step of record.steps) {
+        if (!step?.id || !step?.text) throw new Error('every step needs an id and a text');
+        if (ids.has(step.id)) throw new Error(`duplicate step id "${step.id}"`);
+        ids.add(step.id);
+      }
+    },
+  },
   announcements: { required: ['id', 'title', 'publicationDate'] },
 };
 

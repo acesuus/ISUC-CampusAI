@@ -3,7 +3,7 @@
  * small per-store API that db.js exposes.
  */
 export function fakeAdapter({ failOn = null } = {}) {
-  const data = { conversations: new Map(), messages: new Map(), packs: new Map() };
+  const data = { conversations: new Map(), messages: new Map(), packs: new Map(), checklists: new Map() };
   const keyOf = (store) => (store === 'packs' ? 'slot' : 'id');
 
   return {
