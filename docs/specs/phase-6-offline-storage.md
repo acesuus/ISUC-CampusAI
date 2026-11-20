@@ -1,6 +1,6 @@
 # Phase 6 spec: offline storage and pack updates
 
-Status: draft. Builds on `phase-4-knowledge-base.md` (pack layout, `KnowledgeBase`). Requirements: README 9.1 to 9.4, 16.3, 16.4, 16.7.
+Status: built, with the deviations recorded under "As built". Builds on `phase-4-knowledge-base.md` (pack layout, `KnowledgeBase`). Requirements: README 9.1 to 9.4, 16.3, 16.4, 16.7.
 
 ## Goal
 Make the offline experience reliable: chats survive a reload, the knowledge pack is installed on the device
@@ -87,3 +87,28 @@ Tests run with `npm test`. Storage tests use the in-memory fake; Web Crypto is b
 4. **History limit:** keep the 50 most recent conversations and drop the oldest, because browser storage is shared with the model files. Titles are the first 40 characters of the first question.
 5. **Pack hosting:** same origin as the site, under `/knowledge/`, which the service worker rule above already covers.
 6. **Pack size:** one `documents.json` while packs stay small. Split per document if a pack passes a few megabytes; the manifest `files` map already allows it.
+
+## As built
+Both halves are implemented and covered by tests (`npm test`). Deviations from the design above:
+
+1. **Where the key id is written.** `scripts/sign-pack.mjs` adds `keyId` and `algorithm` to
+   `manifest.json` and then signs that file's bytes; `scripts/build-knowledge.mjs` only adds the
+   `files` hashes. Both fields have to be inside the signed bytes, so the signer must write them.
+   `scripts/pack-crypto.mjs` holds the key-id and signing helpers the two scripts share.
+2. **Dev key.** `npm run pack:devkey` writes a throwaway key pair to `dev-keys/` (git-ignored) and
+   the public half into the pack directory. `src/ai/knowledge/trustedKeys.js` trusts it only behind
+   `import.meta.env.DEV`; the production bundle was checked and contains no trace of that branch.
+   `TRUSTED_KEYS` ships empty, so a student's build installs no pack until the campus has a key.
+3. **The `previous` slot** is written but never read back: the guarantee that is tested is that a
+   refused install leaves `current` untouched. A rollback that serves `previous` is not built.
+4. **Clear app data** removes conversations, the pack, preferences and the service-worker cache.
+   Downloaded models are left to the existing per-model "Remove download" button, because clearing
+   several hundred megabytes should be a deliberate act.
+5. **Not verified in a browser:** the recovery message for a pack the browser deleted. It depends on
+   a `localStorage` record surviving while IndexedDB is cleared, which is awkward to force. The
+   wording and the `lost` flag are in place but have only been reasoned about, not seen.
+
+Checked in a real browser, through the dev key and Playwright: install from Settings (the row updates
+in place and the buttons swap), a saved conversation and its citations surviving a reload, deleting a
+conversation, removing the pack, and a pack with one edited byte being refused with a readable reason
+while nothing is stored.

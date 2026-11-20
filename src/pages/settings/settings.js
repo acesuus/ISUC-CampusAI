@@ -1,7 +1,7 @@
 import { getTheme, setTheme } from '../../services/ThemeService.js';
 import { checkCompatibility } from '../../services/CompatibilityService.js';
 import { modelManager } from '../../ai/engine/ModelManager.js';
-import { knowledgeBase } from '../../ai/knowledge/KnowledgeBase.js';
+import { knowledgeBase, packInstaller } from '../../ai/knowledge/KnowledgeBase.js';
 import { conversation } from '../../ai/session.js';
 import { ChatStore } from '../../storage/ChatStore.js';
 import { storage } from '../../storage/db.js';
@@ -28,6 +28,10 @@ export default {
           </div>
           <div class="setting-row">
             <div><div class="label">Knowledge pack</div><div class="hint" id="pack">Checking…</div></div>
+            <div class="row-actions">
+              <button class="btn btn-sm" type="button" id="pack-install" hidden>Install</button>
+              <button class="btn btn-sm" type="button" id="pack-clear" hidden>Remove pack</button>
+            </div>
           </div>
           <div class="setting-row">
             <div><div class="label">Chat history</div><div class="hint" id="history-hint">Checking…</div></div>
@@ -47,6 +51,12 @@ export default {
           <h2>AI model</h2>
           <p class="hint" id="model-state"></p>
           <div class="settings-list" id="model-list">Loading models…</div>
+        </section>
+
+        <section class="section">
+          <h2>Stored data</h2>
+          <p class="hint">This removes your conversations, the knowledge pack and your preferences from this browser. Downloaded AI models are removed one at a time above.</p>
+          <button class="btn btn-sm" type="button" id="clear-all">Clear app data</button>
         </section>
 
         <section class="section">
@@ -82,16 +92,90 @@ export default {
       }
       conversation.clear();
       renderHistoryCount();
+
+    root.querySelector('#clear-all').addEventListener('click', async () => {
+      if (!window.confirm('Remove your conversations, the knowledge pack and your preferences from this browser? Downloaded AI models are kept; remove those one at a time above.')) return;
+      await Promise.allSettled([chatStore.clear(), packInstaller.remove()]);
+      knowledgeBase.reset();
+      try {
+        for (const key of ['campusai.theme', 'campusai.model', 'campusai.pack']) localStorage.removeItem(key);
+      } catch {
+        /* nothing stored there */
+      }
+      // Drop the cached app shell too, so the next visit fetches the current version.
+      try {
+        await Promise.all((await caches.keys()).map((k) => caches.delete(k)));
+      } catch {
+        /* no service worker cache in this browser or in development */
+      }
+      window.location.reload();
+    });
     });
 
     renderHistoryCount();
 
-    knowledgeBase.load().then((installed) => {
-      const m = knowledgeBase.manifest;
-      root.querySelector('#pack').textContent = installed
-        ? `Version ${m?.packVersion ?? 'unknown'} installed, ${m?.documentCount ?? 0} documents. Only verified documents are used.`
-        : 'Not installed. ISU documents are added once the campus has verified them, so ISU-specific answers cannot be confirmed yet.';
+    root.querySelector('#clear-all').addEventListener('click', async () => {
+      if (!window.confirm('Remove your conversations, the knowledge pack and your preferences from this browser? Downloaded AI models are kept; remove those one at a time above.')) return;
+      await Promise.allSettled([chatStore.clear(), packInstaller.remove()]);
+      knowledgeBase.reset();
+      try {
+        for (const key of ['campusai.theme', 'campusai.model', 'campusai.pack']) localStorage.removeItem(key);
+      } catch {
+        /* nothing stored there */
+      }
+      // Drop the cached app shell too, so the next visit fetches the current version.
+      try {
+        await Promise.all((await caches.keys()).map((k) => caches.delete(k)));
+      } catch {
+        /* no service worker cache in this browser or in development */
+      }
+      window.location.reload();
     });
+
+    const packHint = root.querySelector('#pack');
+    const packInstall = root.querySelector('#pack-install');
+    const packClear = root.querySelector('#pack-clear');
+
+    async function renderPack(message = '') {
+      const state = await packInstaller.check();
+      const { installed, available, upToDate, documentCount } = state;
+
+      let text;
+      if (installed && upToDate !== false) {
+        text = `Version ${installed} installed, ${documentCount} documents. Only verified documents are used.`;
+      } else if (installed) {
+        text = `Version ${installed} installed. Version ${available} is available.`;
+      } else if (state.lost) {
+        text = 'Your browser removed the saved knowledge pack. Install it again to use ISU documents offline.';
+      } else if (available) {
+        text = `Not installed. Version ${available} can be installed now.`;
+      } else {
+        text = 'Not installed. ISU documents are added once the campus has verified them, so ISU-specific answers cannot be confirmed yet.';
+      }
+      packHint.textContent = message ? `${text} ${message}` : text;
+
+      packInstall.hidden = !available || upToDate === true;
+      packInstall.textContent = installed ? 'Update' : 'Install';
+      packClear.hidden = !installed;
+    }
+
+    packInstall.addEventListener('click', async () => {
+      packInstall.disabled = true;
+      packInstall.textContent = 'Checking…';
+      const result = await packInstaller.install();
+      knowledgeBase.reset();
+      packInstall.disabled = false;
+      await renderPack(result.ok ? '' : result.reason);
+    });
+
+    packClear.addEventListener('click', async () => {
+      if (!window.confirm('Remove the installed knowledge pack? ISU-specific answers will stop being available until you install it again.')) return;
+      await packInstaller.remove();
+      knowledgeBase.reset();
+      await renderPack();
+    });
+
+    renderPack();
 
     checkCompatibility().then((c) => {
       root.querySelector('#compat').textContent = c.webgpu

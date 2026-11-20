@@ -3,6 +3,8 @@ dist/
 # Built knowledge packs. Only verified ISU content belongs in a pack, and it is distributed
 # separately, so no pack is committed. Build one with: npm run build:knowledge -- --src <dir>
 public/knowledge/
+# Throwaway signing keys made by scripts/make-dev-key.mjs. Key material never belongs in the repo.
+dev-keys/
 .DS_Store
 *.log
 .env

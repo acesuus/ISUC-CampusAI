@@ -1,5 +1,8 @@
 import { chunk } from './chunker.js';
 import { buildIndex, search, tokenize } from './bm25.js';
+import { PackStore } from '../../storage/PackStore.js';
+import { PackInstaller } from './PackInstaller.js';
+import { storage } from '../../storage/db.js';
 
 /**
  * Loads the local knowledge pack and answers retrieval queries over it.
@@ -21,19 +24,21 @@ export function isCurrent(doc, today = new Date().toISOString().slice(0, 10)) {
   return !doc.expirationDate || doc.expirationDate >= today;
 }
 
-async function fetchPack() {
-  const base = import.meta.env.BASE_URL;
-  const get = async (name) => {
-    const res = await fetch(`${base}knowledge/${name}`);
-    if (!res.ok) throw new Error(`${name}: ${res.status}`);
-    return res.json();
-  };
-  const [manifest, documents] = await Promise.all([get('manifest.json'), get('documents.json')]);
-  return { manifest, documents };
+export const packStore = new PackStore({ connect: storage });
+export const packInstaller = new PackInstaller({ store: packStore });
+
+/**
+ * The pack the student installed, read from this device. Nothing is answered from a pack that was
+ * never verified and stored, so an unverified download can never reach the assistant.
+ */
+async function storedPack() {
+  const row = await packStore.get('current');
+  if (!row) throw new Error('No knowledge pack is installed.');
+  return { manifest: row.manifest, documents: row.documents };
 }
 
 export class KnowledgeBase {
-  constructor({ source = fetchPack } = {}) {
+  constructor({ source = storedPack } = {}) {
     this.source = source;
     this.manifest = null;
     this.index = null;
@@ -56,6 +61,13 @@ export class KnowledgeBase {
         this.pending = null;
       });
     return this.pending;
+  }
+
+  /** Forget the loaded pack, so the next load() picks up a newly installed or cleared one. */
+  reset() {
+    this.manifest = null;
+    this.index = null;
+    this.pending = null;
   }
 
   get packVersion() {

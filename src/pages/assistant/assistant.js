@@ -1,6 +1,7 @@
 import { modelManager } from '../../ai/engine/ModelManager.js';
 import { MODEL_CATALOG, getModel, resolveVramMB } from '../../ai/engine/catalog.js';
 import { conversation } from '../../ai/session.js';
+import { knowledgeBase } from '../../ai/knowledge/KnowledgeBase.js';
 import { getQueryParam } from '../../app/router.js';
 import { escapeHtml, formatMB } from '../../utils/dom.js';
 
@@ -63,9 +64,8 @@ export default {
               <h2>Ask CampusAI</h2>
               <p id="empty-text"></p>
               <div class="chip-list chip-list-center">${chips}</div>
-              <div class="notice">
-                CampusAI cannot confirm ISU-specific facts yet. The verified knowledge base arrives in a later phase,
-                so treat any ISU-specific answer as unverified and confirm it with the responsible office.
+              <div class="notice" id="knowledge-note">
+                Checking for verified ISU documents on this device…
               </div>
             </div>
           </div>
@@ -104,6 +104,7 @@ export default {
       list: $('#chat-messages'),
       empty: $('#chat-empty'),
       emptyText: $('#empty-text'),
+      knowledgeNote: $('#knowledge-note'),
       composer: $('#composer'),
       prompt: $('#prompt'),
       send: $('#send'),
@@ -465,6 +466,12 @@ export default {
     refreshCached();
     // Reopen the most recent conversation, then list what is saved.
     conversation.restore().then(renderHistory);
+
+    knowledgeBase.load().then((installed) => {
+      el.knowledgeNote.textContent = installed
+        ? `Verified ISU documents are installed (pack ${knowledgeBase.packVersion ?? 'unknown'}). Answers about ISU show the sections they come from. Anything the documents do not cover should still be confirmed with the responsible office.`
+        : 'No verified ISU documents are installed, so CampusAI cannot confirm ISU-specific facts. Install a knowledge pack from Settings when the campus publishes one. General questions still work.';
+    });
   },
 
   unmount() {

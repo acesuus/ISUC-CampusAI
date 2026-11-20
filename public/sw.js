@@ -36,6 +36,9 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+  // Knowledge pack files are never served from this cache: a cached copy would hide a published
+  // update, and the app verifies and stores the pack itself.
+  if (url.pathname.includes('/knowledge/')) return;
 
   // ignoreVary: hosts often send "Vary: Origin", and the page's crossorigin script/style requests
   // carry an Origin header that the precached copies lack, which would make every lookup miss.

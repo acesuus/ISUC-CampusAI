@@ -8,6 +8,7 @@
  * body whose `##` headings become the retrievable sections.
  */
 import { readdir, readFile, mkdir, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { join, resolve } from 'node:path';
 
 const REQUIRED = ['id', 'title', 'category', 'office', 'version', 'status', 'effectiveDate', 'source', 'lastVerified'];
@@ -84,16 +85,30 @@ export function parseDocument(text, file) {
   return { ...meta, sections };
 }
 
-/** Turn parsed documents into the two pack files. Throws on a repeated document id. */
+/**
+ * Turn parsed documents into the pack files. Throws on a repeated document id.
+ * The manifest carries the hash of the exact documents.json bytes, so the app can tell that the
+ * file it downloaded is the one the publisher built (README 8.6). The signature and the signing key
+ * id are added afterwards, by scripts/sign-pack.mjs.
+ */
 export function buildPack(documents, { packVersion, campus, appVersion, createdAt }) {
   const seen = new Map();
   for (const doc of documents) {
     if (seen.has(doc.id)) throw new Error(`duplicate document id "${doc.id}" (also in ${seen.get(doc.id)})`);
     seen.set(doc.id, doc.title);
   }
+  const documentsJson = `${JSON.stringify(documents)}\n`;
   return {
-    manifest: { packVersion, campus, createdAt, documentCount: documents.length, appVersion },
+    manifest: {
+      packVersion,
+      campus,
+      createdAt,
+      documentCount: documents.length,
+      appVersion,
+      files: { 'documents.json': createHash('sha256').update(documentsJson).digest('hex') },
+    },
     documents,
+    documentsJson,
   };
 }
 
@@ -123,9 +138,11 @@ async function main() {
 
   await mkdir(out, { recursive: true });
   await writeFile(join(out, 'manifest.json'), `${JSON.stringify(pack.manifest, null, 2)}\n`);
-  await writeFile(join(out, 'documents.json'), `${JSON.stringify(pack.documents)}\n`);
+  // Write the same bytes that were hashed above.
+  await writeFile(join(out, 'documents.json'), pack.documentsJson);
   const sections = documents.reduce((n, d) => n + d.sections.length, 0);
   console.log(`${documents.length} documents, ${sections} sections -> ${out}`);
+  console.log('Next: sign it with scripts/sign-pack.mjs, or the app will refuse to install it.');
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === import.meta.filename) {
