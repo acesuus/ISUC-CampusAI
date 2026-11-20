@@ -1,6 +1,6 @@
 # Phase 4 spec: knowledge base and retrieval (RAG)
 
-Status: draft for review. Source of the requirements: README 7.3, 8.2 to 8.8, 15 (prompt rules), 16.4.
+Status: draft. Decision 1 made: use a build script (see "Pack build script"). Source of the requirements: README 7.3, 8.2 to 8.8, 15 (prompt rules), 16.4.
 
 ## Goal
 Let the on-device assistant answer ISU-specific questions from approved documents, show which document
@@ -48,6 +48,14 @@ Phase 6 adds file hashes and the signature to `manifest.json`; this layout does 
 - `src/pages/settings/settings.js`: replace the hard-coded "Knowledge pack: Not installed" row with the real pack version, or "Not installed" when absent.
 - `src/pages/home/home.js`: fix the false line about stored history if Phase 6 has not shipped by then (audit finding 2).
 
+### Pack build script (decided)
+`scripts/build-knowledge.mjs`, plain Node, no dependencies. Input: `knowledge-src/<category>/*.md`, each file with
+front matter holding the README 8.4 fields (`id, title, category, office, version, status, effectiveDate,
+expirationDate, source, lastVerified`). The script splits the body into sections on `##` headings and writes
+`public/knowledge/documents.json` and `manifest.json`. It fails the build if a required field is missing, an id
+repeats, or a date is invalid. Add `"build:knowledge"` to `package.json`. Tests use `tests/fixtures/knowledge-src/`
+(fake content), never `knowledge-src/`.
+
 ### Rules the code must enforce
 1. Only `verified`, in-date documents are retrievable. Draft, pending, superseded, expired and archived are dropped at load.
 2. If the best score is below a threshold, `reliable` is false and **no citations are attached**.
@@ -64,10 +72,11 @@ Each one is a test in `tests/ai/` (`npm test`) unless marked manual.
 5. `buildMessages` with `context` puts numbered sections in the system prompt; with `reliable: false` it includes the no-source line; with neither it still includes `NO_KNOWLEDGE_NOTE`.
 6. After a send, the assistant message's `citations` equal the retrieved hits, and are empty on the no-source path.
 7. A document whose text says "ignore previous instructions" appears only inside the quoted context block (assert on the built prompt).
-8. Manual: with the fixture pack, a question it covers returns an answer with a source line; an uncovered ISU question says it cannot confirm and names an office; the app still builds and works offline after one online visit.
+8. `scripts/build-knowledge.mjs` rejects a document with a missing front-matter field, a repeated id or an invalid date.
+9. Manual: with the fixture pack, a question it covers returns an answer with a source line; an uncovered ISU question says it cannot confirm and names an office; the app still builds and works offline after one online visit.
 
 ## Open questions (decide before coding)
-1. **Tool for the pack build.** Hand-write `documents.json` for v0.1, or add a small Node script that turns a folder of Markdown files with front matter into `documents.json`? Recommendation: the script, about 40 lines, because the README plans a Markdown-based pipeline and hand-edited JSON will drift.
+1. ~~Tool for the pack build.~~ **Decided: script** (see "Pack build script"; acceptance criterion 8).
 2. **Score threshold.** A fixed number tuned on the fixture pack is a guess for real content. Recommendation: ship a conservative default and tune it in Phase 7 with the 50 to 100 collected student questions (README 8.10).
 3. **Context budget.** Prompt trimming is character-based (6000 characters) and the models run a 4096-token window. Three 800-character chunks plus rules fit, but this should be re-checked for Qwen 0.5B and SmolLM2 360M. Recommendation: cap context at about 2400 characters total.
 4. **Filipino and mixed-language questions.** BM25 on plain tokens handles them without help, but stemming is English-only. Acceptable for v0.1?
