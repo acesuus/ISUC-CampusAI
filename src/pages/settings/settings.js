@@ -1,6 +1,7 @@
 import { getTheme, setTheme } from '../../services/ThemeService.js';
 import { checkCompatibility } from '../../services/CompatibilityService.js';
 import { modelManager } from '../../ai/engine/ModelManager.js';
+import { knowledgeBase } from '../../ai/knowledge/KnowledgeBase.js';
 import { MODEL_CATALOG, getModel, resolveVramMB } from '../../ai/engine/catalog.js';
 import { formatBytes, formatMB, escapeHtml } from '../../utils/dom.js';
 
@@ -23,7 +24,7 @@ export default {
             </select>
           </div>
           <div class="setting-row">
-            <div><div class="label">Knowledge pack</div><div class="hint">Not installed. Knowledge packs arrive in Phase 4.</div></div>
+            <div><div class="label">Knowledge pack</div><div class="hint" id="pack">Checking…</div></div>
           </div>
           <div class="setting-row">
             <div><div class="label">Device compatibility</div><div class="hint" id="compat">Checking…</div></div>
@@ -48,6 +49,13 @@ export default {
 
   mount(root) {
     root.querySelector('#theme-select').addEventListener('change', (e) => setTheme(e.target.value));
+
+    knowledgeBase.load().then((installed) => {
+      const m = knowledgeBase.manifest;
+      root.querySelector('#pack').textContent = installed
+        ? `Version ${m?.packVersion ?? 'unknown'} installed, ${m?.documentCount ?? 0} documents. Only verified documents are used.`
+        : 'Not installed. ISU documents are added once the campus has verified them, so ISU-specific answers cannot be confirmed yet.';
+    });
 
     checkCompatibility().then((c) => {
       root.querySelector('#compat').textContent = c.webgpu

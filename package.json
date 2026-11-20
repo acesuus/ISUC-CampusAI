@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "build:knowledge": "node scripts/build-knowledge.mjs",
     "test": "node --test \"tests/**/*.test.mjs\""
   },
   "devDependencies": {

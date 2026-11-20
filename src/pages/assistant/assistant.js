@@ -224,6 +224,8 @@ export default {
       const view = { root: wrap, body, m };
 
       if (m.role === 'assistant') {
+        view.sources = document.createElement('div');
+        view.sources.className = 'msg-sources';
         view.note = document.createElement('div');
         view.note.className = 'msg-note';
         view.actions = document.createElement('div');
@@ -241,7 +243,7 @@ export default {
         });
         view.regen = makeButton('Regenerate', () => conversation.regenerate());
         view.actions.append(view.copy, view.regen);
-        wrap.append(view.note, view.actions);
+        wrap.append(view.sources, view.note, view.actions);
       }
       return view;
     }
@@ -256,6 +258,14 @@ export default {
       if (m.role !== 'assistant') return;
 
       view.body.hidden = !m.content && !waiting;
+
+      // The sections that were put in the prompt, so the student can check the answer.
+      const cites = m.citations ?? [];
+      view.sources.textContent = cites.length
+        ? `Sources: ${cites.map((c, i) => `[${i + 1}] ${c.title} — ${c.heading}`).join('; ')}`
+        : '';
+      view.sources.hidden = cites.length === 0 || !m.content;
+
       const notes = [];
       if (m.error) notes.push(`Something went wrong: ${m.error}`);
       if (m.stopped) notes.push('Stopped.');

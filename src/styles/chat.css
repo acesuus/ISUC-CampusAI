@@ -98,6 +98,11 @@
   font-size: 0.85rem;
   color: var(--text-muted);
 }
+.msg-sources {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
 .msg-actions {
   display: flex;
   gap: var(--space-2);

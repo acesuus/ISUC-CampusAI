@@ -6,10 +6,12 @@ const newId = () => `m${Date.now().toString(36)}${nextId++}`;
 /**
  * In-memory conversation for the current session. Persistence (IndexedDB) arrives in Phase 6.
  * `engine` needs generate(messages, {onToken}) and interrupt().
+ * `retrieve(question)` is optional and returns { hasKnowledge, reliable, hits } from the knowledge base.
  */
 export class ConversationManager {
-  constructor(engine) {
+  constructor(engine, { retrieve = null } = {}) {
     this.engine = engine;
+    this.retrieve = retrieve;
     this.messages = [];
     this.busy = false;
     this.listeners = new Set();
@@ -55,12 +57,29 @@ export class ConversationManager {
   }
 
   async #respond() {
+    // Snapshot the history before the empty reply joins it.
+    const history = this.messages.slice();
+    const question = history.findLast((m) => m.role === 'user')?.content ?? '';
     const reply = { id: newId(), role: 'assistant', content: '', timestamp: Date.now(), citations: [], stopped: false, error: null };
-    // Build the prompt before adding the empty reply.
-    const prompt = buildMessages(this.messages);
     this.messages.push(reply);
+    // Claim busy before the first await so a second send cannot start while retrieval runs.
     this.busy = true;
     this.#emit();
+
+    let knowledge = { hasKnowledge: false, reliable: false, hits: [] };
+    try {
+      if (this.retrieve) knowledge = await this.retrieve(question);
+    } catch {
+      /* a retrieval failure must not block a general answer; the prompt then allows no ISU facts */
+    }
+    // Citations come from the sections put in the prompt, never from the model's output.
+    reply.citations = knowledge.hits.map((h) => ({
+      docId: h.docId,
+      title: h.title,
+      sectionId: h.sectionId,
+      heading: h.heading,
+    }));
+    const prompt = buildMessages(history, knowledge);
 
     try {
       const { text, finishReason } = await this.engine.generate(prompt, {

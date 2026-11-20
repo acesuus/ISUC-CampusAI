@@ -50,7 +50,7 @@ export default {
           <h2>Offline and private by design</h2>
           <div class="card-grid">
             <div class="card"><h3>Runs on your device</h3><p>The AI model runs in your browser. After setup, the core assistant works without internet.</p></div>
-            <div class="card"><h3>Your questions stay with you</h3><p>Conversation history is stored locally on your device, not on a server.</p></div>
+            <div class="card"><h3>Your questions stay with you</h3><p>Your questions are answered inside your browser. Nothing is sent to a server. Saved conversation history is coming in a later version.</p></div>
             <div class="card"><h3>Source-supported answers</h3><p>University-specific answers are meant to cite verified documents, and say so when they can't.</p></div>
           </div>
         </section>

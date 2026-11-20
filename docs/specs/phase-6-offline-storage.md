@@ -80,10 +80,10 @@ Tests run with `npm test`. Storage tests use the in-memory fake; Web Crypto is b
 7. Manual, real browser: send a message, reload, history is there. Install the pack online, switch to offline, ask a covered question, get a cited answer. Delete site data in dev tools, reopen, see the recovery message.
 8. Manual: serve a tampered `documents.json` and confirm the install is refused with a readable message.
 
-## Open questions (decide before coding)
-1. **Signature algorithm.** Recommendation: ECDSA P-256. Web Crypto supports it in every current browser. Ed25519 is simpler but newer in browser support and should be checked first.
-2. **Key rotation (README 16.7).** The README asks for rotation through an update signed by the previous key. v0.1 here covers one key list shipped in the app. Rotation by app update is possible because the site updates through the service worker. Recommendation: accept that as v0.1 and record the signed-rotation message as a known gap.
-3. **Settings storage.** README 9.3 says settings live in IndexedDB. Theme and model choice work in `localStorage` today and are read before first paint. Recommendation: leave them, and note the deviation.
-4. **History limits.** Titles are the first 40 characters of the first question. Cap at 50 conversations and delete the oldest, or keep all until the student deletes? Recommendation: cap at 50, since browser storage is shared with the model files.
-5. **Where packs are hosted.** Same origin as the site (simplest, and the service worker rule above covers it) or a separate address? A separate address needs a host entry for any content security policy later.
-6. **Pack size.** Fine for plain-text documents. If a pack grows past a few megabytes, `documents.json` should be split per document, which the manifest `files` map already allows.
+## Decisions
+1. **Signature algorithm:** ECDSA P-256 with SHA-256, through Web Crypto. Check Ed25519 browser support before any later switch.
+2. **Key rotation:** v0.1 ships one list of trusted public keys in the app, and rotation happens by app update, which the service worker already delivers. The README 16.7 requirement for a rotation signed by the previous key stays a recorded gap, to be closed when the admin publishing component (README 17) exists.
+3. **Settings storage:** theme and model choice stay in `localStorage`, because the theme is applied before first paint in `index.html`. This deviates from README 9.3 on purpose; only chats and packs go in IndexedDB.
+4. **History limit:** keep the 50 most recent conversations and drop the oldest, because browser storage is shared with the model files. Titles are the first 40 characters of the first question.
+5. **Pack hosting:** same origin as the site, under `/knowledge/`, which the service worker rule above already covers.
+6. **Pack size:** one `documents.json` while packs stay small. Split per document if a pack passes a few megabytes; the manifest `files` map already allows it.

@@ -75,9 +75,9 @@ Each one is a test in `tests/ai/` (`npm test`) unless marked manual.
 8. `scripts/build-knowledge.mjs` rejects a document with a missing front-matter field, a repeated id or an invalid date.
 9. Manual: with the fixture pack, a question it covers returns an answer with a source line; an uncovered ISU question says it cannot confirm and names an office; the app still builds and works offline after one online visit.
 
-## Open questions (decide before coding)
-1. ~~Tool for the pack build.~~ **Decided: script** (see "Pack build script"; acceptance criterion 8).
-2. **Score threshold.** A fixed number tuned on the fixture pack is a guess for real content. Recommendation: ship a conservative default and tune it in Phase 7 with the 50 to 100 collected student questions (README 8.10).
-3. **Context budget.** Prompt trimming is character-based (6000 characters) and the models run a 4096-token window. Three 800-character chunks plus rules fit, but this should be re-checked for Qwen 0.5B and SmolLM2 360M. Recommendation: cap context at about 2400 characters total.
-4. **Filipino and mixed-language questions.** BM25 on plain tokens handles them without help, but stemming is English-only. Acceptable for v0.1?
-5. **Real content.** Who supplies the verified Student Manual and Citizen's Charter text (README 8.9)? Code can ship with the fixture pack until then, but the site must say "not installed" and not present the fixture as ISU information.
+## Decisions
+1. **Pack build:** a script, `scripts/build-knowledge.mjs` (see "Pack build script"; acceptance criterion 8).
+2. **Reliability test:** term coverage, not a score. A BM25 score depends on the size of the pack (with one document the score is near zero), so a fixed score threshold failed in testing. `KnowledgeBase.MIN_COVERAGE` requires the best hit to contain at least half of the question's meaningful words. Re-tune in Phase 7 against the 50 to 100 collected student questions (README 8.10).
+3. **Context budget:** at most about 2400 characters of retrieved text, so three chunks plus the rules fit the 4096-token window of the smallest models.
+4. **Language:** no stemmer. Tokens are lowercased, Unicode-aware, with a plural "s" dropped, and the stop-word list covers English and the common Filipino function words. Good enough for v0.1; revisit only if Phase 7 shows misses.
+5. **Real content:** none ships. The repo carries only a clearly fake fixture pack for tests, `public/knowledge/` is git-ignored, and the site says "Not installed" until the campus supplies verified documents through the README 8.9 workflow.
