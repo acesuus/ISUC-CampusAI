@@ -30,7 +30,8 @@ export default {
           <button class="btn btn-sm sidebar-close" type="button" id="sidebar-close">Close</button>
           <button class="btn btn-primary" type="button" id="new-chat">New conversation</button>
           <h2>History</h2>
-          <p class="history-empty">Saved conversations arrive in a later phase. Your current chat stays until you close this tab.</p>
+          <div class="notice" id="history-notice" role="status" hidden></div>
+          <div class="history-list" id="history-list"></div>
         </aside>
         <div class="sidebar-scrim" id="sidebar-scrim"></div>
 
@@ -87,6 +88,8 @@ export default {
       historyToggle: $('#history-toggle'),
       newChat: $('#new-chat'),
       sidebarClose: $('#sidebar-close'),
+      historyList: $('#history-list'),
+      historyNotice: $('#history-notice'),
       scrim: $('#sidebar-scrim'),
       modelStatus: $('#model-status'),
       gpuStatus: $('#gpu-status'),
@@ -277,6 +280,50 @@ export default {
       view.regen.hidden = !isLast;
     }
 
+    /** The saved conversations on this device. Titles are student text, so they go in as textContent. */
+    async function renderHistory() {
+      const items = await conversation.list();
+      el.historyList.textContent = '';
+
+      if (!items.length) {
+        const empty = document.createElement('p');
+        empty.className = 'history-empty';
+        empty.textContent = 'No saved conversations yet. They stay on this device only.';
+        el.historyList.append(empty);
+      }
+
+      for (const item of items) {
+        const row = document.createElement('div');
+        row.className = 'history-row';
+        if (item.id === conversation.id) row.dataset.current = 'true';
+
+        const open = document.createElement('button');
+        open.type = 'button';
+        open.className = 'history-open';
+        open.textContent = item.title || 'Untitled conversation';
+        if (item.id === conversation.id) open.setAttribute('aria-current', 'true');
+        open.addEventListener('click', async () => {
+          if (await conversation.open(item.id)) setDrawer(false);
+          renderHistory();
+        });
+
+        const name = item.title || 'this conversation';
+        const del = makeButton('Delete', async () => {
+          if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
+          await conversation.remove(item.id);
+          renderHistory();
+        });
+        del.setAttribute('aria-label', `Delete ${name}`);
+
+        row.append(open, del);
+        el.historyList.append(row);
+      }
+
+      el.historyNotice.textContent = conversation.storeError ?? '';
+      el.historyNotice.dataset.kind = 'warn';
+      el.historyNotice.hidden = !conversation.storeError;
+    }
+
     function renderMessages() {
       const { messages, busy } = chat;
       el.list.setAttribute('aria-busy', String(busy));
@@ -348,6 +395,7 @@ export default {
     on(el.newChat, 'click', () => {
       conversation.clear();
       setDrawer(false);
+      renderHistory();
       if (canAutoFocus()) el.prompt.focus();
     });
     on(el.select, 'change', () => {
@@ -400,9 +448,11 @@ export default {
     );
     cleanup.push(
       conversation.subscribe((messages, busy) => {
+        const finished = chat.busy && !busy; // a reply just ended, so the save has happened
         chat = { messages, busy };
         renderMessages();
         renderComposer();
+        if (finished) renderHistory();
       })
     );
 
@@ -413,6 +463,8 @@ export default {
     });
     renderGpu();
     refreshCached();
+    // Reopen the most recent conversation, then list what is saved.
+    conversation.restore().then(renderHistory);
   },
 
   unmount() {

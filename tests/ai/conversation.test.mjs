@@ -144,3 +144,95 @@ test('the empty reply is not sent to the model as history', async () => {
   await c.send('only question');
   assert.deepEqual(e.calls[0].slice(1), [{ role: 'user', content: 'only question' }]);
 });
+
+/* ---------- saving to the device (Phase 6) ---------- */
+
+function storeSpy() {
+  const saves = [];
+  const data = new Map();
+  return {
+    saves,
+    async save(conversation, messages) {
+      saves.push(messages.length);
+      data.set(conversation.id, { conversation, messages: messages.map((m) => ({ ...m })) });
+    },
+    async list() {
+      return [...data.values()]
+        .map((v) => v.conversation)
+        .sort((a, b) => b.updatedAt - a.updatedAt || b.id.localeCompare(a.id));
+    },
+    async load(id) {
+      return data.get(id) ?? null;
+    },
+    async remove(id) {
+      data.delete(id);
+    },
+  };
+}
+
+test('a finished reply is saved once, not once per token', async () => {
+  const store = storeSpy();
+  const c = new ConversationManager(fakeEngine('one two three'), { store });
+  await c.send('hello');
+  assert.deepEqual(store.saves, [2], 'one save holding the question and the reply');
+  assert.equal(c.title, 'hello');
+});
+
+test('a saved conversation is reopened on restore, with its citations', async () => {
+  const store = storeSpy();
+  const first = new ConversationManager(fakeEngine(), {
+    store,
+    retrieve: async () => ({ hasKnowledge: true, reliable: true, hits: HITS }),
+  });
+  await first.send('how do I shift?');
+
+  const next = new ConversationManager(fakeEngine(), { store });
+  assert.equal(await next.restore(), true);
+  assert.equal(next.id, first.id);
+  assert.equal(next.title, 'how do I shift?');
+  assert.deepEqual(next.messages.map((m) => m.role), ['user', 'assistant']);
+  assert.equal(next.messages[1].citations.length, 2);
+});
+
+test('a new conversation keeps the saved ones', async () => {
+  const store = storeSpy();
+  const c = new ConversationManager(fakeEngine(), { store });
+  await c.send('first question');
+  const firstId = c.id;
+
+  c.clear();
+  assert.notEqual(c.id, firstId);
+  assert.deepEqual(c.messages, []);
+  await c.send('second question');
+  assert.deepEqual((await c.list()).map((x) => x.title), ['second question', 'first question']);
+});
+
+test('deleting the open conversation starts an empty one', async () => {
+  const store = storeSpy();
+  const c = new ConversationManager(fakeEngine(), { store });
+  await c.send('doomed');
+  const id = c.id;
+
+  assert.equal(await c.remove(id), true);
+  assert.deepEqual(await c.list(), []);
+  assert.deepEqual(c.messages, []);
+  assert.notEqual(c.id, id);
+});
+
+test('the chat still answers when saving fails, and says so', async () => {
+  const broken = { save: async () => { throw new Error('disk full'); }, list: async () => [], load: async () => null, remove: async () => {} };
+  const c = new ConversationManager(fakeEngine(), { store: broken });
+  await c.send('x');
+  assert.match(c.messages[1].content, /Hello there/);
+  assert.match(c.storeError, /disk full/);
+  assert.deepEqual(await c.list(), []);
+});
+
+test('without a store the chat works and nothing is listed', async () => {
+  const c = new ConversationManager(fakeEngine());
+  await c.send('x');
+  assert.equal(c.messages.length, 2);
+  assert.equal(c.storeError, null);
+  assert.deepEqual(await c.list(), []);
+  assert.equal(await c.restore(), false);
+});

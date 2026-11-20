@@ -2,6 +2,9 @@ import { getTheme, setTheme } from '../../services/ThemeService.js';
 import { checkCompatibility } from '../../services/CompatibilityService.js';
 import { modelManager } from '../../ai/engine/ModelManager.js';
 import { knowledgeBase } from '../../ai/knowledge/KnowledgeBase.js';
+import { conversation } from '../../ai/session.js';
+import { ChatStore } from '../../storage/ChatStore.js';
+import { storage } from '../../storage/db.js';
 import { MODEL_CATALOG, getModel, resolveVramMB } from '../../ai/engine/catalog.js';
 import { formatBytes, formatMB, escapeHtml } from '../../utils/dom.js';
 
@@ -27,6 +30,12 @@ export default {
             <div><div class="label">Knowledge pack</div><div class="hint" id="pack">Checking…</div></div>
           </div>
           <div class="setting-row">
+            <div><div class="label">Chat history</div><div class="hint" id="history-hint">Checking…</div></div>
+            <div class="row-actions">
+              <button class="btn btn-sm" type="button" id="clear-history">Clear chat history</button>
+            </div>
+          </div>
+          <div class="setting-row">
             <div><div class="label">Device compatibility</div><div class="hint" id="compat">Checking…</div></div>
           </div>
           <div class="setting-row">
@@ -49,6 +58,33 @@ export default {
 
   mount(root) {
     root.querySelector('#theme-select').addEventListener('change', (e) => setTheme(e.target.value));
+
+    const chatStore = new ChatStore({ connect: storage });
+    const historyHint = root.querySelector('#history-hint');
+
+    async function renderHistoryCount() {
+      try {
+        const items = await chatStore.list();
+        historyHint.textContent = items.length
+          ? `${items.length} saved conversation${items.length === 1 ? '' : 's'} on this device. Nothing is sent to a server.`
+          : 'No saved conversations on this device.';
+      } catch {
+        historyHint.textContent = 'This browser cannot save conversations, so none are stored.';
+      }
+    }
+
+    root.querySelector('#clear-history').addEventListener('click', async () => {
+      if (!window.confirm('Delete all saved conversations? This cannot be undone.')) return;
+      try {
+        await chatStore.clear();
+      } catch {
+        /* nothing was stored, or storage is unavailable: the chat below is still reset */
+      }
+      conversation.clear();
+      renderHistoryCount();
+    });
+
+    renderHistoryCount();
 
     knowledgeBase.load().then((installed) => {
       const m = knowledgeBase.manifest;

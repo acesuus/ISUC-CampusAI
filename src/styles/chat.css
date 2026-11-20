@@ -98,6 +98,38 @@
   font-size: 0.85rem;
   color: var(--text-muted);
 }
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.history-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.history-row[data-current='true'] .history-open {
+  font-weight: 600;
+}
+.history-open {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.history-open:hover,
+.history-open:focus-visible {
+  background: var(--bg-soft);
+}
 .msg-sources {
   font-size: 0.8rem;
   color: var(--text-muted);
